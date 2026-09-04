@@ -232,6 +232,104 @@
         <button id="btn-close-faq-modal" class="bg-gray-100 text-gray-600 px-4 py-3 rounded-lg font-bold">ปิด</button>
       </div>
     </div>
+
+  <!-- โมดูล: ร้านค้า -->
+  <div id="module-shops" class="module-content hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-black text-gray-800">จัดการร้านค้า</h2>
+      <button id="btn-new-shop" class="bg-pink-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มร้านใหม่</button>
+    </div>
+    <div id="shops-list" class="grid grid-cols-3 gap-4"></div>
+  </div>
+
+  <!-- โมดูล: สินค้า -->
+  <div id="module-products" class="module-content hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-black text-gray-800">จัดการสินค้า</h2>
+      <div class="flex gap-2">
+        <select id="product-shop-filter" class="form-input" style="width: auto;">
+          <option value="">ทุกร้านค้า</option>
+        </select>
+        <button id="btn-new-product" class="bg-purple-600 text-white px-4 py-2.5 rounded-lg font-bold text-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มสินค้าใหม่</button>
+      </div>
+    </div>
+    <div id="products-list" class="grid grid-cols-3 gap-4"></div>
+  </div>
+
+  <!-- ป็อปอัพแก้ไขร้านค้า -->
+  <div id="shop-modal" class="fixed inset-0 bg-black/60 z-[9998] hidden flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-black text-gray-800 mb-4">แก้ไขร้านค้า</h3>
+      <input type="hidden" id="shop-id">
+      <label class="text-sm font-bold text-gray-500 block mb-1">ชื่อร้าน</label>
+      <input id="shop-name" class="form-input mb-3">
+      <label class="text-sm font-bold text-gray-500 block mb-1">คำอธิบายร้าน</label>
+      <textarea id="shop-description" rows="2" class="form-input mb-3"></textarea>
+      <label class="text-sm font-bold text-gray-500 block mb-1">รหัสสมาชิกเจ้าของร้าน (uid หรือ memberId)</label>
+      <input id="shop-owner" class="form-input mb-3" placeholder="line_xxxxxxxxxx">
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <div>
+          <label class="text-sm font-bold text-gray-500 block mb-1">PromptPay ID</label>
+          <input id="shop-promptpay" class="form-input" placeholder="เบอร์โทร/เลขบัตร ปชช.">
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-500 block mb-1">ธนาคาร</label>
+          <input id="shop-bankname" class="form-input" placeholder="กสิกรไทย">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div>
+          <label class="text-sm font-bold text-gray-500 block mb-1">เลขบัญชี</label>
+          <input id="shop-bankaccount" class="form-input">
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-500 block mb-1">ชื่อบัญชี</label>
+          <input id="shop-bankname-owner" class="form-input">
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button id="btn-save-shop" class="flex-1 bg-pink-600 text-white py-3 rounded-lg font-bold">บันทึก</button>
+        <button id="btn-delete-shop" class="bg-red-50 text-red-600 px-4 py-3 rounded-lg font-bold">ลบ</button>
+        <button id="btn-close-shop-modal" class="bg-gray-100 text-gray-600 px-4 py-3 rounded-lg font-bold">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ป็อปอัพแก้ไขสินค้า -->
+  <div id="product-modal" class="fixed inset-0 bg-black/60 z-[9998] hidden flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-black text-gray-800 mb-4">แก้ไขสินค้า</h3>
+      <input type="hidden" id="product-id">
+      <label class="text-sm font-bold text-gray-500 block mb-1">ร้านค้าเจ้าของสินค้า</label>
+      <select id="product-shop" class="form-input mb-3"></select>
+      <label class="text-sm font-bold text-gray-500 block mb-1">ชื่อสินค้า</label>
+      <input id="product-name" class="form-input mb-3">
+      <label class="text-sm font-bold text-gray-500 block mb-1">คำอธิบายสินค้า</label>
+      <textarea id="product-description" rows="2" class="form-input mb-3"></textarea>
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <div>
+          <label class="text-sm font-bold text-gray-500 block mb-1">ราคา (บาท)</label>
+          <input id="product-price" type="number" class="form-input">
+        </div>
+        <div>
+          <label class="text-sm font-bold text-gray-500 block mb-1">สต็อก (ชิ้น)</label>
+          <input id="product-stock" type="number" class="form-input">
+        </div>
+      </div>
+      <label class="text-sm font-bold text-gray-500 block mb-1">ตัวเลือกสินค้า (ไม่บังคับ เช่น สี, ไซส์ — คั่นด้วย comma)</label>
+      <input id="product-variants" class="form-input mb-3" placeholder="แดง, น้ำเงิน, เขียว">
+      <label class="flex items-center gap-2 mb-4 cursor-pointer">
+        <input type="checkbox" id="product-featured" class="w-5 h-5">
+        <span class="text-sm font-bold text-gray-600">ตั้งเป็นสินค้าแนะนำ</span>
+      </label>
+      <div class="flex gap-2">
+        <button id="btn-save-product" class="flex-1 bg-purple-600 text-white py-3 rounded-lg font-bold">บันทึก</button>
+        <button id="btn-delete-product" class="bg-red-50 text-red-600 px-4 py-3 rounded-lg font-bold">ลบ</button>
+        <button id="btn-close-product-modal" class="bg-gray-100 text-gray-600 px-4 py-3 rounded-lg font-bold">ปิด</button>
+      </div>
+    </div>
+  </div>
+
   </div>
 
   <script type="module" src="/src/main.js"></script>

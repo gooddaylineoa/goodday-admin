@@ -91,6 +91,8 @@ function switchModule(name) {
   else if (name === 'events') loadEvents();
   else if (name === 'orginfo') loadOrgInfo();
   else if (name === 'faqs') loadFaqs();
+  else if (name === 'shops') loadShops();
+  else if (name === 'products') loadProducts();
 }
 
 // ================= เมนูอาหาร =================
@@ -469,6 +471,230 @@ document.getElementById('btn-delete-faq').onclick = async () => {
     showToast('ลบสำเร็จ!', 'success');
     document.getElementById('btn-close-faq-modal').click();
     loadFaqs();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+// ================= ร้านค้า =================
+
+let allShopsData = [];
+
+async function loadShops() {
+  const container = document.getElementById('shops-list');
+  container.innerHTML = '<p class="text-gray-400">กำลังโหลด...</p>';
+  try {
+    const { items } = await callAdminApi('list', 'shops');
+    allShopsData = items;
+    container.innerHTML = items.map(s => `
+      <div class="bg-white rounded-xl shadow-sm border p-4 cursor-pointer" onclick="openShopModal('${s.id}')">
+        <h4 class="font-bold text-gray-800">${s.name}</h4>
+        <p class="text-sm text-gray-400 truncate mb-2">${s.description || ''}</p>
+        <p class="text-xs text-gray-400"><i class="fa-solid fa-star text-amber-400"></i> ${(s.rating || 0).toFixed(1)} · ${s.followerCount || 0} ผู้ติดตาม</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+window.openShopModal = function(id) {
+  document.getElementById('shop-id').value = id || '';
+  if (id) {
+    const s = allShopsData.find(x => x.id === id);
+    document.getElementById('shop-name').value = s.name || '';
+    document.getElementById('shop-description').value = s.description || '';
+    document.getElementById('shop-owner').value = s.ownerUid || '';
+    document.getElementById('shop-promptpay').value = s.promptpayId || '';
+    document.getElementById('shop-bankname').value = s.bankName || '';
+    document.getElementById('shop-bankaccount').value = s.bankAccountNumber || '';
+    document.getElementById('shop-bankname-owner').value = s.bankAccountName || '';
+    document.getElementById('btn-delete-shop').classList.remove('hidden');
+  } else {
+    ['shop-name', 'shop-description', 'shop-owner', 'shop-promptpay', 'shop-bankname', 'shop-bankaccount', 'shop-bankname-owner'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('btn-delete-shop').classList.add('hidden');
+  }
+  document.getElementById('shop-modal').classList.remove('hidden');
+  document.getElementById('shop-modal').classList.add('flex');
+};
+
+document.getElementById('btn-new-shop').onclick = () => openShopModal(null);
+document.getElementById('btn-close-shop-modal').onclick = () => {
+  document.getElementById('shop-modal').classList.add('hidden');
+  document.getElementById('shop-modal').classList.remove('flex');
+};
+
+document.getElementById('btn-save-shop').onclick = async () => {
+  const id = document.getElementById('shop-id').value || null;
+  const data = {
+    name: document.getElementById('shop-name').value.trim(),
+    description: document.getElementById('shop-description').value.trim(),
+    ownerUid: document.getElementById('shop-owner').value.trim(),
+    promptpayId: document.getElementById('shop-promptpay').value.trim(),
+    bankName: document.getElementById('shop-bankname').value.trim(),
+    bankAccountNumber: document.getElementById('shop-bankaccount').value.trim(),
+    bankAccountName: document.getElementById('shop-bankname-owner').value.trim()
+  };
+
+  if (!id) { data.rating = 0; data.ratingCount = 0; data.followerCount = 0; }
+  if (!data.name) { showToast('กรุณากรอกชื่อร้าน', 'error'); return; }
+
+  showLoading('กำลังบันทึก...');
+  try {
+    await callAdminApi('save', 'shops', id, data);
+    hideLoading();
+    showToast('บันทึกสำเร็จ!', 'success');
+    document.getElementById('btn-close-shop-modal').click();
+    loadShops();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+document.getElementById('btn-delete-shop').onclick = async () => {
+  const id = document.getElementById('shop-id').value;
+  if (!id || !confirm('ยืนยันลบร้านนี้? สินค้าในร้านจะไม่ถูกลบอัตโนมัติ')) return;
+
+  showLoading('กำลังลบ...');
+  try {
+    await callAdminApi('delete', 'shops', id);
+    hideLoading();
+    showToast('ลบสำเร็จ!', 'success');
+    document.getElementById('btn-close-shop-modal').click();
+    loadShops();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+// ================= สินค้า =================
+
+let allProductsData = [];
+
+function fillShopDropdowns() {
+  const options = allShopsData.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('product-shop').innerHTML = '<option value="">-- เลือกร้านค้า --</option>' + options;
+  document.getElementById('product-shop-filter').innerHTML = '<option value="">ทุกร้านค้า</option>' + options;
+}
+
+async function loadProducts() {
+  const container = document.getElementById('products-list');
+  container.innerHTML = '<p class="text-gray-400">กำลังโหลด...</p>';
+  try {
+    if (allShopsData.length === 0) {
+      const { items } = await callAdminApi('list', 'shops');
+      allShopsData = items;
+    }
+    fillShopDropdowns();
+
+    const { items } = await callAdminApi('list', 'products');
+    allProductsData = items;
+    renderProductsList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderProductsList() {
+  const filterShopId = document.getElementById('product-shop-filter').value;
+  const filtered = filterShopId ? allProductsData.filter(p => p.shopId === filterShopId) : allProductsData;
+
+  document.getElementById('products-list').innerHTML = filtered.map(p => {
+    const shop = allShopsData.find(s => s.id === p.shopId);
+    return `
+      <div class="bg-white rounded-xl shadow-sm border p-4 cursor-pointer" onclick="openProductModal('${p.id}')">
+        <h4 class="font-bold text-gray-800">${p.name}</h4>
+        <p class="text-sm text-gray-400 mb-1">${shop ? shop.name : 'ไม่พบร้าน'}</p>
+        <p class="text-lg font-black text-purple-600">฿${(p.price || 0).toLocaleString()}</p>
+        <p class="text-xs text-gray-400">สต็อก ${p.stock || 0} · ขายแล้ว ${p.sold || 0} ${p.isFeatured ? '· <span class="text-amber-500 font-bold">แนะนำ</span>' : ''}</p>
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('product-shop-filter').onchange = () => renderProductsList();
+
+window.openProductModal = function(id) {
+  document.getElementById('product-id').value = id || '';
+  if (id) {
+    const p = allProductsData.find(x => x.id === id);
+    document.getElementById('product-shop').value = p.shopId || '';
+    document.getElementById('product-name').value = p.name || '';
+    document.getElementById('product-description').value = p.description || '';
+    document.getElementById('product-price').value = p.price || 0;
+    document.getElementById('product-stock').value = p.stock || 0;
+    document.getElementById('product-variants').value = (p.variants && p.variants[0]) ? p.variants[0].options.join(', ') : '';
+    document.getElementById('product-featured').checked = !!p.isFeatured;
+    document.getElementById('btn-delete-product').classList.remove('hidden');
+  } else {
+    document.getElementById('product-shop').value = '';
+    ['product-name', 'product-description', 'product-variants'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('product-price').value = 0;
+    document.getElementById('product-stock').value = 0;
+    document.getElementById('product-featured').checked = false;
+    document.getElementById('btn-delete-product').classList.add('hidden');
+  }
+  document.getElementById('product-modal').classList.remove('hidden');
+  document.getElementById('product-modal').classList.add('flex');
+};
+
+document.getElementById('btn-new-product').onclick = () => openProductModal(null);
+document.getElementById('btn-close-product-modal').onclick = () => {
+  document.getElementById('product-modal').classList.add('hidden');
+  document.getElementById('product-modal').classList.remove('flex');
+};
+
+document.getElementById('btn-save-product').onclick = async () => {
+  const id = document.getElementById('product-id').value || null;
+  const shopId = document.getElementById('product-shop').value;
+  const variantText = document.getElementById('product-variants').value.trim();
+
+  const data = {
+    shopId,
+    name: document.getElementById('product-name').value.trim(),
+    description: document.getElementById('product-description').value.trim(),
+    price: Number(document.getElementById('product-price').value) || 0,
+    stock: Number(document.getElementById('product-stock').value) || 0,
+    isFeatured: document.getElementById('product-featured').checked,
+    ownerUid: allShopsData.find(s => s.id === shopId)?.ownerUid || ''
+  };
+
+  if (variantText) {
+    data.variants = [{ name: 'ตัวเลือก', options: variantText.split(',').map(v => v.trim()).filter(v => v) }];
+  } else {
+    data.variants = [];
+  }
+
+  if (!id) { data.sold = 0; data.rating = 0; data.ratingCount = 0; data.likeCount = 0; }
+  if (!shopId) { showToast('กรุณาเลือกร้านค้า', 'error'); return; }
+  if (!data.name) { showToast('กรุณากรอกชื่อสินค้า', 'error'); return; }
+
+  showLoading('กำลังบันทึก...');
+  try {
+    await callAdminApi('save', 'products', id, data);
+    hideLoading();
+    showToast('บันทึกสำเร็จ!', 'success');
+    document.getElementById('btn-close-product-modal').click();
+    loadProducts();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+document.getElementById('btn-delete-product').onclick = async () => {
+  const id = document.getElementById('product-id').value;
+  if (!id || !confirm('ยืนยันลบสินค้านี้?')) return;
+
+  showLoading('กำลังลบ...');
+  try {
+    await callAdminApi('delete', 'products', id);
+    hideLoading();
+    showToast('ลบสำเร็จ!', 'success');
+    document.getElementById('btn-close-product-modal').click();
+    loadProducts();
   } catch (err) {
     hideLoading();
     showToast(err.message, 'error');
