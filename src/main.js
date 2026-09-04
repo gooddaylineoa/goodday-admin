@@ -1,3 +1,7 @@
+// ============================================================
+// ฟังก์ชันพื้นฐาน (Toast, Loading)
+// ============================================================
+
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   const colors = { success: 'bg-emerald-500', error: 'bg-rose-500', info: 'bg-blue-500' };
@@ -18,6 +22,10 @@ function hideLoading() {
   document.getElementById('loading-overlay').classList.remove('flex');
 }
 
+// ============================================================
+// Login + API กลาง
+// ============================================================
+
 let adminToken = sessionStorage.getItem('adminToken') || null;
 
 async function callAdminApi(action, collection, id = null, data = null) {
@@ -29,6 +37,30 @@ async function callAdminApi(action, collection, id = null, data = null) {
   const result = await res.json();
   if (!res.ok) throw new Error(result.error || 'เกิดข้อผิดพลาด');
   return result;
+}
+
+async function callOrgInfoApi(action, data = null) {
+  const res = await fetch('/api/admin-orginfo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: adminToken, action, data })
+  });
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || 'เกิดข้อผิดพลาด');
+  return result;
+}
+
+async function uploadImageToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'goodday_unsigned');
+
+  const res = await fetch('https://api.cloudinary.com/v1_1/l1htg1ks/image/upload', {
+    method: 'POST', body: formData
+  });
+  const data = await res.json();
+  if (!data.secure_url) throw new Error('อัปโหลดรูปไม่สำเร็จ');
+  return data.secure_url;
 }
 
 if (adminToken) {
@@ -77,6 +109,10 @@ document.getElementById('btn-admin-login').onclick = async () => {
   }
 };
 
+// ============================================================
+// สลับโมดูล
+// ============================================================
+
 document.querySelectorAll('.module-tab').forEach(btn => {
   btn.onclick = () => switchModule(btn.dataset.module);
 });
@@ -95,9 +131,21 @@ function switchModule(name) {
   else if (name === 'products') loadProducts();
 }
 
-// ================= เมนูอาหาร =================
+// ============================================================
+// เมนูอาหาร
+// ============================================================
 
 let allFoodsData = [];
+
+function arrayToTextarea(arr) { return (arr || []).join('\n'); }
+function textareaToArray(text) { return text.split('\n').map(l => l.trim()).filter(l => l); }
+function tipsToTextarea(tips) { return (tips || []).map(t => `${t.icon}|${t.title}|${t.detail}`).join('\n'); }
+function textareaToTips(text) {
+  return text.split('\n').map(l => l.trim()).filter(l => l).map(line => {
+    const [icon, title, detail] = line.split('|').map(s => s.trim());
+    return { icon: icon || '💡', title: title || '', detail: detail || '' };
+  });
+}
 
 async function loadFoods() {
   const container = document.getElementById('foods-list');
@@ -115,19 +163,6 @@ async function loadFoods() {
   } catch (err) {
     showToast(err.message, 'error');
   }
-}
-
-function arrayToTextarea(arr) { return (arr || []).join('\n'); }
-function textareaToArray(text) { return text.split('\n').map(l => l.trim()).filter(l => l); }
-
-function tipsToTextarea(tips) {
-  return (tips || []).map(t => `${t.icon}|${t.title}|${t.detail}`).join('\n');
-}
-function textareaToTips(text) {
-  return text.split('\n').map(l => l.trim()).filter(l => l).map(line => {
-    const [icon, title, detail] = line.split('|').map(s => s.trim());
-    return { icon: icon || '💡', title: title || '', detail: detail || '' };
-  });
 }
 
 window.openFoodModal = function(id) {
@@ -198,7 +233,9 @@ document.getElementById('btn-delete-food').onclick = async () => {
   }
 };
 
-// ================= กิจกรรม =================
+// ============================================================
+// กิจกรรม
+// ============================================================
 
 let allEventsData = [];
 let currentSlots = [];
@@ -329,18 +366,9 @@ document.getElementById('btn-delete-event').onclick = async () => {
   }
 };
 
-// ================= รู้จักเรา (orgInfo) =================
-
-async function callOrgInfoApi(action, data = null) {
-  const res = await fetch('/api/admin-orginfo', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: adminToken, action, data })
-  });
-  const result = await res.json();
-  if (!res.ok) throw new Error(result.error || 'เกิดข้อผิดพลาด');
-  return result;
-}
+// ============================================================
+// รู้จักเรา (orgInfo)
+// ============================================================
 
 async function loadOrgInfo() {
   try {
@@ -389,7 +417,9 @@ document.getElementById('btn-save-orginfo').onclick = async () => {
   }
 };
 
-// ================= คำถามที่พบบ่อย (FAQ) =================
+// ============================================================
+// คำถามที่พบบ่อย (FAQ)
+// ============================================================
 
 let allFaqsData = [];
 
@@ -477,9 +507,12 @@ document.getElementById('btn-delete-faq').onclick = async () => {
   }
 };
 
-// ================= ร้านค้า =================
+// ============================================================
+// ร้านค้า (พร้อมอัปโหลดรูป)
+// ============================================================
 
 let allShopsData = [];
+let selectedShopImageFile = null;
 
 async function loadShops() {
   const container = document.getElementById('shops-list');
@@ -489,6 +522,7 @@ async function loadShops() {
     allShopsData = items;
     container.innerHTML = items.map(s => `
       <div class="bg-white rounded-xl shadow-sm border p-4 cursor-pointer" onclick="openShopModal('${s.id}')">
+        <img src="${s.logoUrl || ''}" class="w-full h-32 object-cover rounded-lg mb-2 bg-gray-100">
         <h4 class="font-bold text-gray-800">${s.name}</h4>
         <p class="text-sm text-gray-400 truncate mb-2">${s.description || ''}</p>
         <p class="text-xs text-gray-400"><i class="fa-solid fa-star text-amber-400"></i> ${(s.rating || 0).toFixed(1)} · ${s.followerCount || 0} ผู้ติดตาม</p>
@@ -499,8 +533,26 @@ async function loadShops() {
   }
 }
 
+document.getElementById('shop-image-preview-box').onclick = () => {
+  document.getElementById('shop-image-input').click();
+};
+document.getElementById('shop-image-input').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedShopImageFile = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('shop-image-preview').src = ev.target.result;
+    document.getElementById('shop-image-preview').classList.remove('hidden');
+    document.getElementById('shop-image-placeholder').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+};
+
 window.openShopModal = function(id) {
   document.getElementById('shop-id').value = id || '';
+  selectedShopImageFile = null;
+
   if (id) {
     const s = allShopsData.find(x => x.id === id);
     document.getElementById('shop-name').value = s.name || '';
@@ -510,9 +562,20 @@ window.openShopModal = function(id) {
     document.getElementById('shop-bankname').value = s.bankName || '';
     document.getElementById('shop-bankaccount').value = s.bankAccountNumber || '';
     document.getElementById('shop-bankname-owner').value = s.bankAccountName || '';
+
+    if (s.logoUrl) {
+      document.getElementById('shop-image-preview').src = s.logoUrl;
+      document.getElementById('shop-image-preview').classList.remove('hidden');
+      document.getElementById('shop-image-placeholder').classList.add('hidden');
+    } else {
+      document.getElementById('shop-image-preview').classList.add('hidden');
+      document.getElementById('shop-image-placeholder').classList.remove('hidden');
+    }
     document.getElementById('btn-delete-shop').classList.remove('hidden');
   } else {
     ['shop-name', 'shop-description', 'shop-owner', 'shop-promptpay', 'shop-bankname', 'shop-bankaccount', 'shop-bankname-owner'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('shop-image-preview').classList.add('hidden');
+    document.getElementById('shop-image-placeholder').classList.remove('hidden');
     document.getElementById('btn-delete-shop').classList.add('hidden');
   }
   document.getElementById('shop-modal').classList.remove('hidden');
@@ -542,6 +605,12 @@ document.getElementById('btn-save-shop').onclick = async () => {
 
   showLoading('กำลังบันทึก...');
   try {
+    if (selectedShopImageFile) {
+      showLoading('กำลังอัปโหลดรูป...');
+      data.logoUrl = await uploadImageToCloudinary(selectedShopImageFile);
+      showLoading('กำลังบันทึก...');
+    }
+
     await callAdminApi('save', 'shops', id, data);
     hideLoading();
     showToast('บันทึกสำเร็จ!', 'success');
@@ -570,9 +639,12 @@ document.getElementById('btn-delete-shop').onclick = async () => {
   }
 };
 
-// ================= สินค้า =================
+// ============================================================
+// สินค้า (พร้อมอัปโหลดรูป)
+// ============================================================
 
 let allProductsData = [];
+let selectedProductImageFile = null;
 
 function fillShopDropdowns() {
   const options = allShopsData.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -606,6 +678,7 @@ function renderProductsList() {
     const shop = allShopsData.find(s => s.id === p.shopId);
     return `
       <div class="bg-white rounded-xl shadow-sm border p-4 cursor-pointer" onclick="openProductModal('${p.id}')">
+        <img src="${p.imageUrl || ''}" class="w-full h-32 object-cover rounded-lg mb-2 bg-gray-100">
         <h4 class="font-bold text-gray-800">${p.name}</h4>
         <p class="text-sm text-gray-400 mb-1">${shop ? shop.name : 'ไม่พบร้าน'}</p>
         <p class="text-lg font-black text-purple-600">฿${(p.price || 0).toLocaleString()}</p>
@@ -616,8 +689,26 @@ function renderProductsList() {
 
 document.getElementById('product-shop-filter').onchange = () => renderProductsList();
 
+document.getElementById('product-image-preview-box').onclick = () => {
+  document.getElementById('product-image-input').click();
+};
+document.getElementById('product-image-input').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedProductImageFile = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('product-image-preview').src = ev.target.result;
+    document.getElementById('product-image-preview').classList.remove('hidden');
+    document.getElementById('product-image-placeholder').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+};
+
 window.openProductModal = function(id) {
   document.getElementById('product-id').value = id || '';
+  selectedProductImageFile = null;
+
   if (id) {
     const p = allProductsData.find(x => x.id === id);
     document.getElementById('product-shop').value = p.shopId || '';
@@ -627,6 +718,15 @@ window.openProductModal = function(id) {
     document.getElementById('product-stock').value = p.stock || 0;
     document.getElementById('product-variants').value = (p.variants && p.variants[0]) ? p.variants[0].options.join(', ') : '';
     document.getElementById('product-featured').checked = !!p.isFeatured;
+
+    if (p.imageUrl) {
+      document.getElementById('product-image-preview').src = p.imageUrl;
+      document.getElementById('product-image-preview').classList.remove('hidden');
+      document.getElementById('product-image-placeholder').classList.add('hidden');
+    } else {
+      document.getElementById('product-image-preview').classList.add('hidden');
+      document.getElementById('product-image-placeholder').classList.remove('hidden');
+    }
     document.getElementById('btn-delete-product').classList.remove('hidden');
   } else {
     document.getElementById('product-shop').value = '';
@@ -634,6 +734,8 @@ window.openProductModal = function(id) {
     document.getElementById('product-price').value = 0;
     document.getElementById('product-stock').value = 0;
     document.getElementById('product-featured').checked = false;
+    document.getElementById('product-image-preview').classList.add('hidden');
+    document.getElementById('product-image-placeholder').classList.remove('hidden');
     document.getElementById('btn-delete-product').classList.add('hidden');
   }
   document.getElementById('product-modal').classList.remove('hidden');
@@ -673,6 +775,12 @@ document.getElementById('btn-save-product').onclick = async () => {
 
   showLoading('กำลังบันทึก...');
   try {
+    if (selectedProductImageFile) {
+      showLoading('กำลังอัปโหลดรูป...');
+      data.imageUrl = await uploadImageToCloudinary(selectedProductImageFile);
+      showLoading('กำลังบันทึก...');
+    }
+
     await callAdminApi('save', 'products', id, data);
     hideLoading();
     showToast('บันทึกสำเร็จ!', 'success');
