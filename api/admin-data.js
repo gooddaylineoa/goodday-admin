@@ -1,5 +1,6 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import jwt from 'jsonwebtoken';
 
 if (!getApps().length) {
   initializeApp({
@@ -15,17 +16,19 @@ if (!getApps().length) {
 
 const adminDb = getFirestore();
 
-// 🔴 อนุญาตเฉพาะ collection ที่อยู่ในลิสต์นี้เท่านั้น (กันพลาดแก้ collection อันตราย)
 const ALLOWED_COLLECTIONS = ['foods', 'events'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'ใช้ได้เฉพาะ POST เท่านั้น' });
 
-  const { adminSecret, action, collection, id, data } = req.body;
+  const { token, action, collection, id, data } = req.body;
 
-  if (adminSecret !== process.env.ADMIN_SECRET) {
-    return res.status(403).json({ error: 'รหัสผ่านแอดมินไม่ถูกต้อง' });
+  try {
+    jwt.verify(token, process.env.ADMIN_JWT_SECRET);
+  } catch (err) {
+    return res.status(403).json({ error: 'session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
   }
+
   if (!ALLOWED_COLLECTIONS.includes(collection)) {
     return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ไข collection นี้' });
   }

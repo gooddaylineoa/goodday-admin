@@ -18,49 +18,61 @@ function hideLoading() {
   document.getElementById('loading-overlay').classList.remove('flex');
 }
 
-let adminSecret = sessionStorage.getItem('adminSecret') || null;
+let adminToken = sessionStorage.getItem('adminToken') || null;
 
 async function callAdminApi(action, collection, id = null, data = null) {
   const res = await fetch('/api/admin-data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ adminSecret, action, collection, id, data })
+    body: JSON.stringify({ token: adminToken, action, collection, id, data })
   });
   const result = await res.json();
   if (!res.ok) throw new Error(result.error || 'เกิดข้อผิดพลาด');
   return result;
 }
 
-if (adminSecret) {
+if (adminToken) {
   document.getElementById('login-view').classList.remove('active');
   document.getElementById('dashboard-view').classList.add('active');
   switchModule('foods');
 }
 
 document.getElementById('btn-admin-login').onclick = async () => {
-  const pass = document.getElementById('admin-password-input').value;
+  const memberId = document.getElementById('admin-memberid-input').value.trim();
+  const password = document.getElementById('admin-password-input').value;
   const errBox = document.getElementById('login-error');
-  if (!pass) return;
+  errBox.classList.add('hidden');
 
-  showLoading('กำลังตรวจสอบ...');
-  try {
-    await callAdminApi('list', 'foods'); // ยิงทดสอบรหัสผ่าน (ยังไม่ set adminSecret จริง)
-  } catch (err) {
-    // ยังไม่ได้ set adminSecret เลยพังตรงนี้เสมอ ไม่เป็นไร เช็คจาก error message แทน
+  if (!memberId || !password) {
+    errBox.innerText = 'กรุณากรอกรหัสสมาชิกและรหัสผ่านให้ครบ';
+    errBox.classList.remove('hidden');
+    return;
   }
 
-  adminSecret = pass;
+  showLoading('กำลังเข้าสู่ระบบ...');
   try {
-    await callAdminApi('list', 'foods');
-    sessionStorage.setItem('adminSecret', pass);
+    const res = await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId, password })
+    });
+    const result = await res.json();
     hideLoading();
+
+    if (!res.ok) {
+      errBox.innerText = result.error || 'เข้าสู่ระบบไม่สำเร็จ';
+      errBox.classList.remove('hidden');
+      return;
+    }
+
+    adminToken = result.token;
+    sessionStorage.setItem('adminToken', adminToken);
     document.getElementById('login-view').classList.remove('active');
     document.getElementById('dashboard-view').classList.add('active');
     switchModule('foods');
   } catch (err) {
     hideLoading();
-    adminSecret = null;
-    errBox.innerText = 'รหัสผ่านไม่ถูกต้อง';
+    errBox.innerText = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
     errBox.classList.remove('hidden');
   }
 };

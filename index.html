@@ -26,16 +26,17 @@
 
   <!-- หน้า Login -->
   <div id="login-view" class="page-view active min-h-screen flex items-center justify-center p-6">
-    <div class="bg-white rounded-2xl shadow-md p-8 w-full max-w-sm text-center">
-      <div class="w-16 h-16 bg-gray-800 text-white rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
-        <i class="fa-solid fa-user-shield"></i>
-      </div>
-      <h2 class="text-xl font-black text-gray-800 mb-4">Goodday Admin</h2>
-      <input id="admin-password-input" type="password" class="form-input mb-3" placeholder="รหัสผ่านแอดมิน">
-      <div id="login-error" class="text-red-500 text-sm font-bold mb-3 hidden"></div>
-      <button id="btn-admin-login" class="w-full bg-gray-800 text-white py-3 rounded-lg font-bold">เข้าสู่ระบบ</button>
+  <div class="bg-white rounded-2xl shadow-md p-8 w-full max-w-sm text-center">
+    <div class="w-16 h-16 bg-gray-800 text-white rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+      <i class="fa-solid fa-user-shield"></i>
     </div>
+    <h2 class="text-xl font-black text-gray-800 mb-4">Goodday Admin</h2>
+    <input id="admin-memberid-input" type="text" class="form-input mb-3" placeholder="รหัสสมาชิก (เช่น GD-123456)">
+    <input id="admin-password-input" type="password" class="form-input mb-3" placeholder="รหัสผ่าน">
+    <div id="login-error" class="text-red-500 text-sm font-bold mb-3 hidden"></div>
+    <button id="btn-admin-login" class="w-full bg-gray-800 text-white py-3 rounded-lg font-bold">เข้าสู่ระบบ</button>
   </div>
+</div>
 
   <!-- โครงหลัก (แถบเมนูซ้าย + เนื้อหา) -->
   <div id="dashboard-view" class="page-view min-h-screen flex">
