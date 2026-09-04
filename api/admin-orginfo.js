@@ -16,12 +16,10 @@ if (!getApps().length) {
 
 const adminDb = getFirestore();
 
-const ALLOWED_COLLECTIONS = ['foods', 'events', 'faqs'];
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'ใช้ได้เฉพาะ POST เท่านั้น' });
 
-  const { token, action, collection, id, data } = req.body;
+  const { token, action, data } = req.body;
 
   try {
     jwt.verify(token, process.env.ADMIN_JWT_SECRET);
@@ -29,30 +27,16 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
   }
 
-  if (!ALLOWED_COLLECTIONS.includes(collection)) {
-    return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ไข collection นี้' });
-  }
-
   try {
-    if (action === 'list') {
-      const snap = await adminDb.collection(collection).get();
-      const items = [];
-      snap.forEach(d => items.push({ id: d.id, ...d.data() }));
-      return res.status(200).json({ items });
+    const orgRef = adminDb.collection('orgInfo').doc('main');
+
+    if (action === 'get') {
+      const docSnap = await orgRef.get();
+      return res.status(200).json({ data: docSnap.exists ? docSnap.data() : {} });
     }
 
     if (action === 'save') {
-      if (id) {
-        await adminDb.collection(collection).doc(id).set(data, { merge: true });
-        return res.status(200).json({ success: true, id });
-      } else {
-        const ref = await adminDb.collection(collection).add(data);
-        return res.status(200).json({ success: true, id: ref.id });
-      }
-    }
-
-    if (action === 'delete') {
-      await adminDb.collection(collection).doc(id).delete();
+      await orgRef.set(data, { merge: true });
       return res.status(200).json({ success: true });
     }
 

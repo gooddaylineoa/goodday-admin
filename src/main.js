@@ -89,6 +89,8 @@ function switchModule(name) {
 
   if (name === 'foods') loadFoods();
   else if (name === 'events') loadEvents();
+  else if (name === 'orginfo') loadOrgInfo();
+  else if (name === 'faqs') loadFaqs();
 }
 
 // ================= เมนูอาหาร =================
@@ -319,6 +321,154 @@ document.getElementById('btn-delete-event').onclick = async () => {
     showToast('ลบสำเร็จ!', 'success');
     document.getElementById('btn-close-event-modal').click();
     loadEvents();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+// ================= รู้จักเรา (orgInfo) =================
+
+async function callOrgInfoApi(action, data = null) {
+  const res = await fetch('/api/admin-orginfo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: adminToken, action, data })
+  });
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || 'เกิดข้อผิดพลาด');
+  return result;
+}
+
+async function loadOrgInfo() {
+  try {
+    const { data } = await callOrgInfoApi('get');
+    document.getElementById('org-name').value = data.name || '';
+    document.getElementById('org-description').value = data.description || '';
+    document.getElementById('org-logo').value = data.logoUrl || '';
+    document.getElementById('org-phone').value = data.phone || '';
+    document.getElementById('org-coordinator').value = data.coordinatorName || '';
+    document.getElementById('org-email').value = data.email || '';
+
+    const socials = data.socialLinks || {};
+    document.getElementById('org-instagram').value = socials.instagram || '';
+    document.getElementById('org-facebook').value = socials.facebook || '';
+    document.getElementById('org-tiktok').value = socials.tiktok || '';
+    document.getElementById('org-youtube').value = socials.youtube || '';
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+document.getElementById('btn-save-orginfo').onclick = async () => {
+  const data = {
+    name: document.getElementById('org-name').value.trim(),
+    description: document.getElementById('org-description').value.trim(),
+    logoUrl: document.getElementById('org-logo').value.trim(),
+    phone: document.getElementById('org-phone').value.trim(),
+    coordinatorName: document.getElementById('org-coordinator').value.trim(),
+    email: document.getElementById('org-email').value.trim(),
+    socialLinks: {
+      instagram: document.getElementById('org-instagram').value.trim(),
+      facebook: document.getElementById('org-facebook').value.trim(),
+      tiktok: document.getElementById('org-tiktok').value.trim(),
+      youtube: document.getElementById('org-youtube').value.trim()
+    }
+  };
+
+  showLoading('กำลังบันทึก...');
+  try {
+    await callOrgInfoApi('save', data);
+    hideLoading();
+    showToast('บันทึกข้อมูลสำเร็จ!', 'success');
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+// ================= คำถามที่พบบ่อย (FAQ) =================
+
+let allFaqsData = [];
+
+async function loadFaqs() {
+  const container = document.getElementById('faqs-list');
+  container.innerHTML = '<p class="text-gray-400">กำลังโหลด...</p>';
+  try {
+    const { items } = await callAdminApi('list', 'faqs');
+    allFaqsData = items.sort((a, b) => (a.order || 0) - (b.order || 0));
+    container.innerHTML = allFaqsData.map(f => `
+      <div class="bg-white rounded-xl shadow-sm border p-4 cursor-pointer flex justify-between items-center" onclick="openFaqModal('${f.id}')">
+        <div>
+          <p class="text-xs text-gray-400 font-bold">ลำดับ ${f.order || '-'}</p>
+          <h4 class="font-bold text-gray-800">${f.question}</h4>
+        </div>
+        <i class="fa-solid fa-chevron-right text-gray-300"></i>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+window.openFaqModal = function(id) {
+  document.getElementById('faq-id').value = id || '';
+  if (id) {
+    const f = allFaqsData.find(x => x.id === id);
+    document.getElementById('faq-question').value = f.question || '';
+    document.getElementById('faq-answer').value = f.answer || '';
+    document.getElementById('faq-order').value = f.order || '';
+    document.getElementById('btn-delete-faq').classList.remove('hidden');
+  } else {
+    document.getElementById('faq-question').value = '';
+    document.getElementById('faq-answer').value = '';
+    document.getElementById('faq-order').value = allFaqsData.length + 1;
+    document.getElementById('btn-delete-faq').classList.add('hidden');
+  }
+  document.getElementById('faq-modal').classList.remove('hidden');
+  document.getElementById('faq-modal').classList.add('flex');
+};
+
+document.getElementById('btn-new-faq').onclick = () => openFaqModal(null);
+document.getElementById('btn-close-faq-modal').onclick = () => {
+  document.getElementById('faq-modal').classList.add('hidden');
+  document.getElementById('faq-modal').classList.remove('flex');
+};
+
+document.getElementById('btn-save-faq').onclick = async () => {
+  const id = document.getElementById('faq-id').value || null;
+  const data = {
+    question: document.getElementById('faq-question').value.trim(),
+    answer: document.getElementById('faq-answer').value.trim(),
+    order: Number(document.getElementById('faq-order').value) || 0
+  };
+
+  if (!data.question || !data.answer) { showToast('กรุณากรอกคำถามและคำตอบ', 'error'); return; }
+
+  showLoading('กำลังบันทึก...');
+  try {
+    await callAdminApi('save', 'faqs', id, data);
+    hideLoading();
+    showToast('บันทึกสำเร็จ!', 'success');
+    document.getElementById('btn-close-faq-modal').click();
+    loadFaqs();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+document.getElementById('btn-delete-faq').onclick = async () => {
+  const id = document.getElementById('faq-id').value;
+  if (!id || !confirm('ยืนยันลบคำถามนี้?')) return;
+
+  showLoading('กำลังลบ...');
+  try {
+    await callAdminApi('delete', 'faqs', id);
+    hideLoading();
+    showToast('ลบสำเร็จ!', 'success');
+    document.getElementById('btn-close-faq-modal').click();
+    loadFaqs();
   } catch (err) {
     hideLoading();
     showToast(err.message, 'error');
