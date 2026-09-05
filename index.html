@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Goodday Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
@@ -46,6 +47,9 @@
 
     <div class="w-56 bg-gray-800 text-white min-h-screen p-4 shrink-0">
       <h2 class="text-lg font-black mb-6"><i class="fa-solid fa-gauge mr-2"></i>Goodday Admin</h2>
+      <button data-module="dashboard" class="module-tab w-full text-left px-3 py-2.5 rounded-lg mb-1 font-bold text-sm">
+      <i class="fa-solid fa-chart-line mr-2"></i>ภาพรวม
+    </button>
       <button data-module="foods" class="module-tab w-full text-left px-3 py-2.5 rounded-lg mb-1 font-bold text-sm">
         <i class="fa-solid fa-bowl-food mr-2"></i>เมนูอาหาร
       </button>
@@ -67,6 +71,57 @@
     </div>
 
     <div class="flex-1 p-6 overflow-y-auto">
+
+      <!-- โมดูล: ภาพรวม (Dashboard) -->
+      <div id="module-dashboard" class="module-content hidden">
+        <h2 class="text-2xl font-black text-gray-800 mb-4">ภาพรวมระบบ Goodday</h2>
+
+        <!-- การ์ดตัวเลขสรุป -->
+        <div class="grid grid-cols-5 gap-3 mb-6">
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <p class="text-xs text-gray-400 font-bold uppercase">สมาชิกทั้งหมด</p>
+            <p id="dash-total-members" class="text-3xl font-black text-gray-800 mt-1">-</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <p class="text-xs text-gray-400 font-bold uppercase">ร้านค้า / สินค้า</p>
+            <p id="dash-total-shops" class="text-3xl font-black text-pink-600 mt-1">-</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <p class="text-xs text-gray-400 font-bold uppercase">ยอดขายรวม</p>
+            <p id="dash-total-revenue" class="text-3xl font-black text-emerald-600 mt-1">-</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <p class="text-xs text-gray-400 font-bold uppercase">กิจกรรมทั้งหมด</p>
+            <p id="dash-total-events" class="text-3xl font-black text-blue-600 mt-1">-</p>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <p class="text-xs text-gray-400 font-bold uppercase">แจ้งเหตุทั้งหมด</p>
+            <p id="dash-total-reports" class="text-3xl font-black text-amber-600 mt-1">-</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="text-base font-black text-gray-700 mb-3">สมาชิกใหม่ (30 วันล่าสุด)</h3>
+            <canvas id="chart-new-members" height="120"></canvas>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="text-base font-black text-gray-700 mb-3">ยอดขายรายวัน (7 วันล่าสุด)</h3>
+            <canvas id="chart-sales" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="text-base font-black text-gray-700 mb-3">สถานะคำสั่งซื้อ</h3>
+            <canvas id="chart-order-status" height="180"></canvas>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="text-base font-black text-gray-700 mb-3">สถานะแจ้งเหตุ</h3>
+            <canvas id="chart-report-status" height="180"></canvas>
+          </div>
+        </div>
+      </div>
 
       <!-- โมดูล: เมนูอาหาร -->
       <div id="module-foods" class="module-content hidden">

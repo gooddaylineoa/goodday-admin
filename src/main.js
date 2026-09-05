@@ -66,7 +66,7 @@ async function uploadImageToCloudinary(file) {
 if (adminToken) {
   document.getElementById('login-view').classList.remove('active');
   document.getElementById('dashboard-view').classList.add('active');
-  switchModule('foods');
+  switchModule('dashboard');
 }
 
 document.getElementById('btn-admin-login').onclick = async () => {
@@ -101,7 +101,7 @@ document.getElementById('btn-admin-login').onclick = async () => {
     sessionStorage.setItem('adminToken', adminToken);
     document.getElementById('login-view').classList.remove('active');
     document.getElementById('dashboard-view').classList.add('active');
-    switchModule('foods');
+    switchModule('dashboard');
   } catch (err) {
     hideLoading();
     errBox.innerText = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
@@ -123,7 +123,8 @@ function switchModule(name) {
   document.querySelectorAll('.module-content').forEach(c => c.classList.add('hidden'));
   document.getElementById(`module-${name}`).classList.remove('hidden');
 
-  if (name === 'foods') loadFoods();
+  if (name === 'dashboard') loadDashboard();
+  else if (name === 'foods') loadFoods();
   else if (name === 'events') loadEvents();
   else if (name === 'orginfo') loadOrgInfo();
   else if (name === 'faqs') loadFaqs();
@@ -808,3 +809,104 @@ document.getElementById('btn-delete-product').onclick = async () => {
     showToast(err.message, 'error');
   }
 };
+
+// ============================================================
+// ภาพรวม (Dashboard)
+// ============================================================
+
+let dashboardCharts = {};
+
+async function loadDashboard() {
+  try {
+    const stats = await callAdminApi('dashboard-stats', null);
+
+    document.getElementById('dash-total-members').innerText = stats.totalMembers.toLocaleString();
+    document.getElementById('dash-total-shops').innerText = `${stats.totalShops} / ${stats.totalProducts}`;
+    document.getElementById('dash-total-revenue').innerText = `฿${stats.totalRevenue.toLocaleString()}`;
+    document.getElementById('dash-total-events').innerText = stats.totalEvents.toLocaleString();
+    document.getElementById('dash-total-reports').innerText = stats.totalReports.toLocaleString();
+
+    renderNewMembersChart(stats.memberDaily);
+    renderSalesChart(stats.salesDaily);
+    renderOrderStatusChart(stats.orderStatusCount);
+    renderReportStatusChart(stats.reportStatusCount);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function destroyChart(key) {
+  if (dashboardCharts[key]) { dashboardCharts[key].destroy(); delete dashboardCharts[key]; }
+}
+
+function renderNewMembersChart(memberDaily) {
+  destroyChart('newMembers');
+  const labels = Object.keys(memberDaily).map(d => d.slice(5)); // MM-DD
+  const data = Object.values(memberDaily);
+
+  dashboardCharts.newMembers = new Chart(document.getElementById('chart-new-members'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data, borderColor: '#d81b60', backgroundColor: 'rgba(216,27,96,0.1)',
+        fill: true, tension: 0.3, pointRadius: 0
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { maxTicksLimit: 6 } } }
+    }
+  });
+}
+
+function renderSalesChart(salesDaily) {
+  destroyChart('sales');
+  const labels = Object.keys(salesDaily).map(d => d.slice(5));
+  const data = Object.values(salesDaily);
+
+  dashboardCharts.sales = new Chart(document.getElementById('chart-sales'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: '#a855f7' }] },
+    options: { plugins: { legend: { display: false } } }
+  });
+}
+
+const orderStatusLabels = {
+  pending_payment: 'รอชำระเงิน', pending_verify: 'รอตรวจสอบ', preparing: 'กำลังจัดส่ง',
+  shipping: 'อยู่ระหว่างจัดส่ง', completed: 'เสร็จสิ้น'
+};
+
+function renderOrderStatusChart(statusCount) {
+  destroyChart('orderStatus');
+  const labels = Object.keys(statusCount).map(k => orderStatusLabels[k] || k);
+  const data = Object.values(statusCount);
+
+  dashboardCharts.orderStatus = new Chart(document.getElementById('chart-order-status'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: ['#f97316', '#eab308', '#3b82f6', '#6366f1', '#10b981'] }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+const reportStatusLabels = {
+  pending: 'รอรับเรื่อง', inprogress: 'กำลังดำเนินการ', resolved: 'เสร็จสิ้น', cancelled: 'ยกเลิก'
+};
+
+function renderReportStatusChart(statusCount) {
+  destroyChart('reportStatus');
+  const labels = Object.keys(statusCount).map(k => reportStatusLabels[k] || k);
+  const data = Object.values(statusCount);
+
+  dashboardCharts.reportStatus = new Chart(document.getElementById('chart-report-status'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: ['#f97316', '#eab308', '#10b981', '#9ca3af'] }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+}
