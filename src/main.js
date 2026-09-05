@@ -130,6 +130,9 @@ function switchModule(name) {
   else if (name === 'faqs') loadFaqs();
   else if (name === 'shops') loadShops();
   else if (name === 'products') loadProducts();
+  else if (name === 'members') loadMembers();
+  else if (name === 'reports') loadReports();
+  else if (name === 'orders') loadOrdersAdmin();
 }
 
 // ============================================================
@@ -910,3 +913,313 @@ function renderReportStatusChart(statusCount) {
     options: { plugins: { legend: { position: 'bottom' } } }
   });
 }
+
+// ============================================================
+// แจ้งเหตุ
+// ============================================================
+
+let allReportsData = [];
+let currentReportFilter = 'all';
+
+async function callAdminReportsApi(action, reportId = null, newStatus = null) {
+  const res = await fetch('/api/admin-reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: adminToken, action, reportId, newStatus })
+  });
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || 'เกิดข้อผิดพลาด');
+  return result;
+}
+
+async function loadReports() {
+  const container = document.getElementById('reports-list');
+  container.innerHTML = '<p class="text-gray-400">กำลังโหลด...</p>';
+
+  try {
+    const { items } = await callAdminReportsApi('list');
+    allReportsData = items;
+    renderReportsList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+const reportStatusLabelMap = { pending: 'รอรับเรื่อง', inprogress: 'กำลังดำเนินการ', resolved: 'เสร็จสิ้น', cancelled: 'ยกเลิก' };
+const reportStatusColorMap = {
+  pending: 'bg-orange-50 text-orange-600',
+  inprogress: 'bg-amber-50 text-amber-600',
+  resolved: 'bg-emerald-50 text-emerald-600',
+  cancelled: 'bg-gray-100 text-gray-400'
+};
+
+function renderReportsList() {
+  const filtered = currentReportFilter === 'all'
+    ? allReportsData
+    : allReportsData.filter(r => r.status === currentReportFilter);
+
+  const container = document.getElementById('reports-list');
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="text-center text-gray-400 py-8">ไม่มีเรื่องแจ้งในหมวดนี้</p>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(r => `
+    <div class="bg-white rounded-xl shadow-sm border p-4">
+      <div class="flex gap-3 mb-3">
+        <img src="${r.imageUrl || ''}" class="w-16 h-16 rounded-lg object-cover shrink-0 bg-gray-100">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <h4 class="font-black text-gray-800">${r.title}</h4>
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full ${reportStatusColorMap[r.status] || ''}">${reportStatusLabelMap[r.status] || r.status}</span>
+          </div>
+          <p class="text-sm text-gray-400">${r.reportCode} · ${r.category || '-'}</p>
+        </div>
+      </div>
+      <p class="text-sm text-gray-600 mb-3">${r.description || ''}</p>
+      ${r.mapLink ? `<a href="${r.mapLink}" target="_blank" class="text-sm text-blue-600 underline mb-3 inline-block"><i class="fa-solid fa-map-location-dot mr-1"></i>ดูตำแหน่งบนแผนที่</a>` : ''}
+      <select class="form-input report-status-select" data-rid="${r.id}">
+        <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>รอรับเรื่อง</option>
+        <option value="inprogress" ${r.status === 'inprogress' ? 'selected' : ''}>กำลังดำเนินการ</option>
+        <option value="resolved" ${r.status === 'resolved' ? 'selected' : ''}>เสร็จสิ้น</option>
+        <option value="cancelled" ${r.status === 'cancelled' ? 'selected' : ''}>ยกเลิก</option>
+      </select>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.report-status-select').forEach(sel => {
+    sel.onchange = async () => {
+      showLoading('กำลังอัปเดตสถานะและแจ้งเตือน...');
+      try {
+        await callAdminReportsApi('update-status', sel.dataset.rid, sel.value);
+        hideLoading();
+        showToast('อัปเดตสถานะสำเร็จ ส่งแจ้งเตือนแล้ว!', 'success');
+        await loadReports();
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    };
+  });
+}
+
+document.querySelectorAll('.report-filter-btn').forEach(btn => {
+  btn.onclick = () => {
+    currentReportFilter = btn.dataset.reportFilter;
+    document.querySelectorAll('.report-filter-btn').forEach(b => b.className = 'report-filter-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-600');
+    btn.className = 'report-filter-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-800 text-white';
+    renderReportsList();
+  };
+});
+
+// ============================================================
+// คำสั่งซื้อ
+// ============================================================
+
+let allOrdersData = [];
+let currentOrderFilter = 'all';
+
+const adminOrderStatusLabel = {
+  pending_payment: 'รอชำระเงิน',
+  pending_verify: 'รอตรวจสอบการชำระเงิน',
+  preparing: 'กำลังจัดส่ง',
+  shipping: 'อยู่ระหว่างการจัดส่ง',
+  completed: 'เสร็จสิ้น',
+  cancelled: 'ยกเลิก'
+};
+const adminOrderStatusColor = {
+  pending_payment: 'bg-orange-50 text-orange-600',
+  pending_verify: 'bg-amber-50 text-amber-600',
+  preparing: 'bg-blue-50 text-blue-600',
+  shipping: 'bg-indigo-50 text-indigo-600',
+  completed: 'bg-emerald-50 text-emerald-600',
+  cancelled: 'bg-gray-100 text-gray-400'
+};
+
+async function loadOrdersAdmin() {
+  const container = document.getElementById('orders-list');
+  container.innerHTML = '<p class="text-gray-400">กำลังโหลด...</p>';
+
+  try {
+    const { items } = await callAdminApi('list', 'orders');
+
+    if (allShopsData.length === 0) {
+      const shopsRes = await callAdminApi('list', 'shops');
+      allShopsData = shopsRes.items;
+    }
+
+    allOrdersData = items.sort((a, b) => {
+      const ta = a.createdAt?._seconds || 0;
+      const tb = b.createdAt?._seconds || 0;
+      return tb - ta;
+    });
+
+    renderOrdersListAdmin();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderOrdersListAdmin() {
+  const filtered = currentOrderFilter === 'all'
+    ? allOrdersData
+    : allOrdersData.filter(o => o.status === currentOrderFilter);
+
+  const container = document.getElementById('orders-list');
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="text-center text-gray-400 py-8">ไม่มีคำสั่งซื้อในหมวดนี้</p>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(o => {
+    const shop = allShopsData.find(s => s.id === o.shopId);
+    return `
+      <div class="bg-white rounded-xl shadow-sm border p-4">
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <p class="text-sm text-gray-400 font-bold">คำสั่งซื้อ #${o.id.slice(0, 8)}</p>
+            <p class="text-sm font-bold text-gray-600"><i class="fa-solid fa-shop mr-1"></i>${shop ? shop.name : 'ไม่พบร้าน'}</p>
+          </div>
+          <span class="text-xs font-bold px-2 py-1 rounded-full ${adminOrderStatusColor[o.status] || ''}">${adminOrderStatusLabel[o.status] || o.status}</span>
+        </div>
+        ${(o.items || []).map(it => `<p class="text-sm text-gray-700">${it.name} ${it.variant ? `(${it.variant})` : ''} x${it.qty}</p>`).join('')}
+        <p class="text-lg font-black text-purple-600 mt-1 mb-3">฿${(o.totalAmount || 0).toLocaleString()}</p>
+        <select class="form-input admin-order-status-select" data-oid="${o.id}">
+          <option value="pending_payment" ${o.status === 'pending_payment' ? 'selected' : ''}>รอชำระเงิน</option>
+          <option value="pending_verify" ${o.status === 'pending_verify' ? 'selected' : ''}>รอตรวจสอบการชำระเงิน</option>
+          <option value="preparing" ${o.status === 'preparing' ? 'selected' : ''}>กำลังจัดส่ง</option>
+          <option value="shipping" ${o.status === 'shipping' ? 'selected' : ''}>อยู่ระหว่างการจัดส่ง</option>
+          <option value="completed" ${o.status === 'completed' ? 'selected' : ''}>เสร็จสิ้น</option>
+          <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>ยกเลิก</option>
+        </select>
+      </div>`;
+  }).join('');
+
+  document.querySelectorAll('.admin-order-status-select').forEach(sel => {
+    sel.onchange = async () => {
+      showLoading('กำลังอัปเดตสถานะ...');
+      try {
+        await callAdminApi('save', 'orders', sel.dataset.oid, { status: sel.value });
+        hideLoading();
+        showToast('อัปเดตสถานะสำเร็จ!', 'success');
+        await loadOrdersAdmin();
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    };
+  });
+}
+
+document.querySelectorAll('.order-filter-btn').forEach(btn => {
+  btn.onclick = () => {
+    currentOrderFilter = btn.dataset.orderFilter;
+    document.querySelectorAll('.order-filter-btn').forEach(b => b.className = 'order-filter-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-600');
+    btn.className = 'order-filter-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-800 text-white';
+    renderOrdersListAdmin();
+  };
+});
+
+// ============================================================
+// สมาชิก + ตั้งสิทธิ์เจ้าของร้าน
+// ============================================================
+
+let allMembersData = [];
+
+async function loadMembers() {
+  const tbody = document.getElementById('members-table-body');
+  tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">กำลังโหลด...</td></tr>';
+
+  try {
+    const { items } = await callAdminApi('list', 'users');
+    allMembersData = items;
+
+    if (allShopsData.length === 0) {
+      const shopsRes = await callAdminApi('list', 'shops');
+      allShopsData = shopsRes.items;
+    }
+
+    renderMembersTable(allMembersData);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderMembersTable(members) {
+  const tbody = document.getElementById('members-table-body');
+
+  if (members.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">ไม่พบสมาชิก</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = members.map(m => {
+    const ownedShop = allShopsData.find(s => s.id === m.ownerOfShopId);
+    return `
+      <tr class="border-t border-gray-100">
+        <td class="p-3 font-bold text-gray-800">${m.name || '-'}</td>
+        <td class="p-3 text-gray-500">${m.memberId || '-'}</td>
+        <td class="p-3 text-gray-500">${m.phone || '-'}</td>
+        <td class="p-3">
+          ${ownedShop
+            ? `<span class="bg-emerald-50 text-emerald-600 text-xs font-bold px-2 py-1 rounded-full">${ownedShop.name}</span>`
+            : `<span class="text-gray-400 text-xs">ไม่มี</span>`}
+        </td>
+        <td class="p-3">
+          <button class="btn-assign-owner text-blue-600 font-bold text-sm underline" data-uid="${m.id}">จัดการสิทธิ์</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.querySelectorAll('.btn-assign-owner').forEach(btn => {
+    btn.onclick = () => openOwnerAssignModal(btn.dataset.uid);
+  });
+}
+
+document.getElementById('member-search').oninput = (e) => {
+  const term = e.target.value.trim().toLowerCase();
+  if (!term) { renderMembersTable(allMembersData); return; }
+  const filtered = allMembersData.filter(m =>
+    (m.name || '').toLowerCase().includes(term) || (m.memberId || '').toLowerCase().includes(term)
+  );
+  renderMembersTable(filtered);
+};
+
+function openOwnerAssignModal(uid) {
+  const member = allMembersData.find(m => m.id === uid);
+  if (!member) return;
+
+  document.getElementById('owner-assign-uid').value = uid;
+  document.getElementById('owner-assign-name').innerText = member.name || uid;
+
+  const select = document.getElementById('owner-assign-shop');
+  select.innerHTML = '<option value="">-- ไม่มีสิทธิ์เจ้าของร้าน --</option>' +
+    allShopsData.map(s => `<option value="${s.id}" ${s.id === member.ownerOfShopId ? 'selected' : ''}>${s.name}</option>`).join('');
+
+  document.getElementById('owner-assign-modal').classList.remove('hidden');
+  document.getElementById('owner-assign-modal').classList.add('flex');
+}
+
+document.getElementById('btn-close-owner-assign').onclick = () => {
+  document.getElementById('owner-assign-modal').classList.add('hidden');
+  document.getElementById('owner-assign-modal').classList.remove('flex');
+};
+
+document.getElementById('btn-save-owner-assign').onclick = async () => {
+  const uid = document.getElementById('owner-assign-uid').value;
+  const shopId = document.getElementById('owner-assign-shop').value;
+
+  showLoading('กำลังบันทึกสิทธิ์...');
+  try {
+    await callAdminApi('assign-shop-owner', null, null, { uid, shopId });
+    hideLoading();
+    showToast('บันทึกสิทธิ์สำเร็จ!', 'success');
+    document.getElementById('btn-close-owner-assign').click();
+    loadMembers();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
