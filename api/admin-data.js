@@ -29,7 +29,10 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
   }
 
-  if (!ALLOWED_COLLECTIONS.includes(collection)) {
+  // 🆕 action พิเศษเหล่านี้ไม่ผูกกับ collection เดียว ให้ข้ามการเช็ค ALLOWED_COLLECTIONS ไปเลย
+  const SPECIAL_ACTIONS = ['dashboard-stats', 'assign-shop-owner'];
+
+  if (!SPECIAL_ACTIONS.includes(action) && !ALLOWED_COLLECTIONS.includes(collection)) {
     return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ไข collection นี้' });
   }
 
