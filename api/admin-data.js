@@ -16,7 +16,7 @@ if (!getApps().length) {
 
 const adminDb = getFirestore();
 
-const ALLOWED_COLLECTIONS = ['foods', 'events', 'faqs', 'shops', 'products', 'users', 'orders', 'reports'];
+const ALLOWED_COLLECTIONS = ['foods', 'events', 'faqs', 'shops', 'products', 'users', 'orders', 'reports', 'libraryBranches'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'ใช้ได้เฉพาะ POST เท่านั้น' });
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   }
 
   // 🆕 action พิเศษเหล่านี้ไม่ผูกกับ collection เดียว ให้ข้ามการเช็ค ALLOWED_COLLECTIONS ไปเลย
-  const SPECIAL_ACTIONS = ['dashboard-stats', 'assign-shop-owner'];
+  const SPECIAL_ACTIONS = ['dashboard-stats', 'assign-shop-owner', 'assign-librarian'];
 
   if (!SPECIAL_ACTIONS.includes(action) && !ALLOWED_COLLECTIONS.includes(collection)) {
     return res.status(400).json({ error: 'ไม่อนุญาตให้แก้ไข collection นี้' });
@@ -129,4 +129,13 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+if (action === 'assign-librarian') {
+  const { uid, branchId } = req.body.data;
+  await adminDb.collection('users').doc(uid).update({
+    isLibrarian: !!branchId,
+    librarianBranchId: branchId || null
+  });
+  return res.status(200).json({ success: true });
 }

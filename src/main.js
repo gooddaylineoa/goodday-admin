@@ -1223,3 +1223,41 @@ document.getElementById('btn-save-owner-assign').onclick = async () => {
     showToast(err.message, 'error');
   }
 };
+
+// ================= สิทธิ์บรรณารักษ์ =================
+
+let allBranchesData = [];
+
+async function loadLibraryBranches() {
+  if (allBranchesData.length > 0) return;
+  const { items } = await callAdminApi('list', 'libraryBranches');
+  allBranchesData = items;
+}
+
+// แก้ openOwnerAssignModal เดิม เพิ่มส่วนบรรณารักษ์เข้าไปด้วย
+const originalOpenOwnerAssignModal = openOwnerAssignModal;
+window.openOwnerAssignModal = async function(uid) {
+  originalOpenOwnerAssignModal(uid);
+  await loadLibraryBranches();
+
+  const member = allMembersData.find(m => m.id === uid);
+  const select = document.getElementById('librarian-assign-branch');
+  select.innerHTML = '<option value="">-- ไม่มีสิทธิ์บรรณารักษ์ --</option>' +
+    allBranchesData.map(b => `<option value="${b.id}" ${b.id === member.librarianBranchId ? 'selected' : ''}>${b.branchName} (${b.province})</option>`).join('');
+};
+
+document.getElementById('btn-save-librarian-assign').onclick = async () => {
+  const uid = document.getElementById('owner-assign-uid').value;
+  const branchId = document.getElementById('librarian-assign-branch').value;
+
+  showLoading('กำลังบันทึกสิทธิ์...');
+  try {
+    await callAdminApi('assign-librarian', null, null, { uid, branchId });
+    hideLoading();
+    showToast('บันทึกสิทธิ์บรรณารักษ์สำเร็จ!', 'success');
+    loadMembers();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
