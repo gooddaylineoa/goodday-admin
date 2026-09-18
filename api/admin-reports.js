@@ -83,7 +83,7 @@ export default async function handler(req, res) {
         const statusText = statusMessages[newStatus] || newStatus;
         await sendLinePush(
           lineUserId,
-          `📢 อัปเดตสถานะแจ้งเหตุ\n\nเรื่อง: ${data.title}\nรหัส: ${data.reportCode}\nสถานะใหม่: ${statusText}\n\nเปิดแอปเพื่อดูรายละเอียดเพิ่มเติมได้เลยครับ`
+          `📢 อัปเดตสถานะแจ้งเหตุ\n\nเรื่อง: ${data.title}\nรหัส: ${data.reportCode}\nสถานะใหม่: ${statusText}\n\nเปิดแอปเพื่อดูรายละเอียดเพิ่มเติมได้`
         );
       }
 

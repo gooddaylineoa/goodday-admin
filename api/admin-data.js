@@ -29,7 +29,6 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
   }
 
-  // 🆕 action พิเศษเหล่านี้ไม่ผูกกับ collection เดียว ให้ข้ามการเช็ค ALLOWED_COLLECTIONS ไปเลย
   const SPECIAL_ACTIONS = ['dashboard-stats', 'assign-shop-owner', 'assign-librarian'];
 
   if (!SPECIAL_ACTIONS.includes(action) && !ALLOWED_COLLECTIONS.includes(collection)) {
@@ -54,7 +53,6 @@ export default async function handler(req, res) {
         adminDb.collection('reports').get()
       ]);
 
-      // สมาชิกใหม่ 30 วันล่าสุด แยกตามวัน
       const memberDaily = {};
       const now = new Date();
       for (let i = 29; i >= 0; i--) {
@@ -69,7 +67,6 @@ export default async function handler(req, res) {
         }
       });
 
-      // ยอดขายรายวัน 7 วันล่าสุด + ยอดขายรวม
       const salesDaily = {};
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now); d.setDate(now.getDate() - i);
@@ -89,7 +86,6 @@ export default async function handler(req, res) {
         orderStatusCount[data.status] = (orderStatusCount[data.status] || 0) + 1;
       });
 
-      // สถานะแจ้งเหตุ
       const reportStatusCount = {};
       reportsSnap.forEach(doc => {
         const status = doc.data().status || 'pending';
@@ -108,6 +104,15 @@ export default async function handler(req, res) {
         orderStatusCount,
         reportStatusCount
       });
+    }
+
+    if (action === 'assign-librarian') {
+      const { uid, branchId } = data;
+      await adminDb.collection('users').doc(uid).update({
+        isLibrarian: !!branchId,
+        librarianBranchId: branchId || null
+      });
+      return res.status(200).json({ success: true });
     }
 
     if (action === 'save') {
@@ -129,13 +134,4 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-}
-
-if (action === 'assign-librarian') {
-  const { uid, branchId } = req.body.data;
-  await adminDb.collection('users').doc(uid).update({
-    isLibrarian: !!branchId,
-    librarianBranchId: branchId || null
-  });
-  return res.status(200).json({ success: true });
 }
