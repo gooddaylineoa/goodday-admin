@@ -16,7 +16,7 @@ if (!getApps().length) {
 
 const adminDb = getFirestore();
 
-const ALLOWED_COLLECTIONS = ['foods', 'events', 'faqs', 'shops', 'products', 'users', 'orders', 'reports', 'libraryBranches'];
+const ALLOWED_COLLECTIONS = ['foods', 'events', 'faqs', 'shops', 'products', 'users', 'orders', 'reports', 'libraryBranches', 'walkathonProvinces'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'ใช้ได้เฉพาะ POST เท่านั้น' });

@@ -106,6 +106,10 @@
             <p class="text-xs text-gray-400 font-bold uppercase">แจ้งเหตุทั้งหมด</p>
             <p id="dash-total-reports" class="text-3xl font-black text-amber-600 mt-1">-</p>
           </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <p class="text-xs text-gray-400 font-bold uppercase">Walkathon</p>
+            <p id="dash-total-walkathon" class="text-3xl font-black text-purple-600 mt-1">-</p>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4 mb-4">
@@ -279,6 +283,15 @@
           <button data-order-filter="completed" class="order-filter-btn px-4 py-2 rounded-lg font-bold text-sm bg-gray-100 text-gray-600">เสร็จสิ้น</button>
         </div>
         <div id="orders-list" class="space-y-3"></div>
+      </div>
+
+      <!-- โมดูล: Walkathon -->
+      <div id="module-walkathon" class="module-content hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-black text-gray-800">จัดการ Thailand Walkathon</h2>
+          <button id="btn-new-province" class="theme-pink text-white px-4 py-2.5 rounded-lg font-bold text-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มจังหวัดใหม่</button>
+        </div>
+        <div id="walkathon-list" class="grid grid-cols-3 gap-4"></div>
       </div>
 
     </div>
@@ -496,6 +509,47 @@
         <option value="">-- ไม่มีสิทธิ์บรรณารักษ์ --</option>
       </select>
       <button id="btn-save-librarian-assign" class="w-full bg-purple-600 text-white py-3 rounded-lg font-bold">บันทึกสิทธิ์บรรณารักษ์</button>
+    </div>
+  </div>
+
+  <!-- ป็อปอัพแก้ไขจังหวัด Walkathon -->
+  <div id="province-modal" class="fixed inset-0 bg-black/60 z-[9998] hidden flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-black text-gray-800 mb-4">แก้ไขจังหวัด Walkathon</h3>
+      <input type="hidden" id="prov-id">
+
+      <label class="text-sm font-bold text-gray-500 block mb-1">ชื่อจังหวัด</label>
+      <input id="prov-name" class="form-input mb-3" placeholder="ชลบุรี">
+
+      <label class="text-sm font-bold text-gray-500 block mb-1">ลำดับการแสดง</label>
+      <input id="prov-order" type="number" class="form-input mb-3" placeholder="1">
+
+      <label class="flex items-center gap-2 cursor-pointer mb-3">
+        <input type="checkbox" id="prov-active" class="w-5 h-5">
+        <span class="text-sm font-bold text-gray-700">เปิดใช้งาน (ถ้าไม่ติ๊ก จะขึ้น "เร็วๆ นี้" ล็อกไว้)</span>
+      </label>
+
+      <label class="text-sm font-bold text-gray-500 block mb-1">รูปโปสเตอร์จังหวัด</label>
+      <div id="prov-poster-preview-box" class="w-full h-40 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden cursor-pointer mb-4">
+        <div id="prov-poster-placeholder" class="text-center text-gray-400">
+          <i class="fa-solid fa-image text-3xl mb-1"></i>
+          <p class="text-sm font-bold">กดเพื่ออัปโหลดรูปโปสเตอร์</p>
+        </div>
+        <img id="prov-poster-preview" class="hidden w-full h-full object-contain">
+      </div>
+      <input type="file" id="prov-poster-input" accept="image/*" class="hidden">
+
+      <div class="flex justify-between items-center mb-2 mt-6">
+        <label class="text-base font-black text-gray-700">รายการ Milestone (22 ไอเทม)</label>
+        <button id="btn-add-milestone" class="theme-pink text-white px-3 py-1.5 rounded-lg font-bold text-sm"><i class="fa-solid fa-plus mr-1"></i>เพิ่มไอเทม</button>
+      </div>
+      <div id="milestones-editor" class="space-y-3 mb-4"></div>
+
+      <div class="flex gap-2 sticky bottom-0 bg-white pt-3 border-t">
+        <button id="btn-save-province" class="flex-1 theme-pink text-white py-3 rounded-lg font-bold">บันทึกทั้งหมด</button>
+        <button id="btn-delete-province" class="bg-red-50 text-red-600 px-4 py-3 rounded-lg font-bold">ลบจังหวัด</button>
+        <button id="btn-close-province-modal" class="bg-gray-100 text-gray-600 px-4 py-3 rounded-lg font-bold">ปิด</button>
+      </div>
     </div>
   </div>
 

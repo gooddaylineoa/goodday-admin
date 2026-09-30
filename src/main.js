@@ -133,6 +133,7 @@ function switchModule(name) {
   else if (name === 'members') loadMembers();
   else if (name === 'reports') loadReports();
   else if (name === 'orders') loadOrdersAdmin();
+  else if (name === 'walkathon') loadWalkathon();
 }
 
 // ============================================================
@@ -1256,6 +1257,214 @@ document.getElementById('btn-save-librarian-assign').onclick = async () => {
     hideLoading();
     showToast('บันทึกสิทธิ์บรรณารักษ์สำเร็จ!', 'success');
     loadMembers();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+// ================= Walkathon =================
+
+let allProvincesData = [];
+let currentMilestones = [];
+let pendingPosterFile = null;
+let pendingStampFiles = {}; // key: index ในอาร์เรย์ milestones -> File object ที่ยังไม่อัปโหลด
+
+async function loadWalkathon() {
+  const container = document.getElementById('walkathon-list');
+  container.innerHTML = '<p class="text-gray-400">กำลังโหลด...</p>';
+  try {
+    const { items } = await callAdminApi('list', 'walkathonProvinces');
+    allProvincesData = items;
+    container.innerHTML = items.map(p => `
+      <div class="bg-white rounded-xl shadow-sm border p-4 cursor-pointer" onclick="openProvinceModal('${p.id}')">
+        ${p.posterImage ? `<img src="${p.posterImage}" class="w-full h-32 object-cover rounded-lg mb-2 bg-gray-100">` : `<div class="w-full h-32 bg-gray-100 rounded-lg mb-2 flex items-center justify-center text-gray-300 text-3xl"><i class="fa-solid fa-image"></i></div>`}
+        <div class="flex justify-between items-center">
+          <h4 class="font-bold text-gray-800">${p.name}</h4>
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full ${p.active ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}">${p.active ? 'เปิดใช้งาน' : 'ปิดอยู่'}</span>
+        </div>
+        <p class="text-sm text-gray-400 mt-1">${(p.milestones || []).length} milestone</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderMilestonesEditor() {
+  document.getElementById('milestones-editor').innerHTML = currentMilestones.map((m, i) => `
+    <div class="flex gap-3 items-start bg-gray-50 p-3 rounded-lg border">
+      <div class="w-20 h-20 shrink-0 rounded-lg overflow-hidden border-2 border-gray-200 cursor-pointer milestone-stamp-box" data-i="${i}">
+        ${m.stampImage ? `<img src="${m.stampImage}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-white flex items-center justify-center text-gray-300 text-xl"><i class="fa-solid fa-stamp"></i></div>`}
+      </div>
+      <div class="flex-1 space-y-1.5">
+        <input type="number" class="form-input text-sm milestone-steps" data-i="${i}" placeholder="จำนวนก้าว" value="${m.steps || ''}">
+        <input type="text" class="form-input text-sm milestone-question" data-i="${i}" placeholder="คำถาม" value="${(m.question || '').replace(/"/g, '&quot;')}">
+        <input type="text" class="form-input text-sm milestone-answer" data-i="${i}" placeholder="คำตอบ" value="${(m.answer || '').replace(/"/g, '&quot;')}">
+      </div>
+      <button class="text-red-500 milestone-remove shrink-0" data-i="${i}"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.milestone-steps').forEach(inp => {
+    inp.oninput = () => { currentMilestones[Number(inp.dataset.i)].steps = Number(inp.value) || 0; };
+  });
+  document.querySelectorAll('.milestone-question').forEach(inp => {
+    inp.oninput = () => { currentMilestones[Number(inp.dataset.i)].question = inp.value; };
+  });
+  document.querySelectorAll('.milestone-answer').forEach(inp => {
+    inp.oninput = () => { currentMilestones[Number(inp.dataset.i)].answer = inp.value; };
+  });
+  document.querySelectorAll('.milestone-remove').forEach(btn => {
+    btn.onclick = () => {
+      const i = Number(btn.dataset.i);
+      currentMilestones.splice(i, 1);
+      delete pendingStampFiles[i];
+      // เลื่อน key ของ pendingStampFiles ที่อยู่หลัง index ที่ลบ ให้ตรงกับตำแหน่งใหม่
+      const shifted = {};
+      Object.keys(pendingStampFiles).forEach(k => {
+        const idx = Number(k);
+        shifted[idx > i ? idx - 1 : idx] = pendingStampFiles[k];
+      });
+      pendingStampFiles = shifted;
+      renderMilestonesEditor();
+    };
+  });
+  document.querySelectorAll('.milestone-stamp-box').forEach(box => {
+    box.onclick = () => {
+      const i = Number(box.dataset.i);
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        pendingStampFiles[i] = file;
+        const reader = new FileReader();
+        reader.onload = (ev) => { box.innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover">`; };
+        reader.readAsDataURL(file);
+      };
+      fileInput.click();
+    };
+  });
+}
+
+document.getElementById('btn-add-milestone').onclick = () => {
+  currentMilestones.push({ steps: 0, question: '', answer: '', stampImage: '' });
+  renderMilestonesEditor();
+};
+
+document.getElementById('prov-poster-preview-box').onclick = () => document.getElementById('prov-poster-input').click();
+document.getElementById('prov-poster-input').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingPosterFile = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById('prov-poster-preview').src = ev.target.result;
+    document.getElementById('prov-poster-preview').classList.remove('hidden');
+    document.getElementById('prov-poster-placeholder').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+};
+
+window.openProvinceModal = function(id) {
+  document.getElementById('prov-id').value = id || '';
+  pendingPosterFile = null;
+  pendingStampFiles = {};
+
+  if (id) {
+    const p = allProvincesData.find(x => x.id === id);
+    document.getElementById('prov-name').value = p.name || '';
+    document.getElementById('prov-order').value = p.order || 0;
+    document.getElementById('prov-active').checked = !!p.active;
+    currentMilestones = JSON.parse(JSON.stringify(p.milestones || []));
+
+    if (p.posterImage) {
+      document.getElementById('prov-poster-preview').src = p.posterImage;
+      document.getElementById('prov-poster-preview').classList.remove('hidden');
+      document.getElementById('prov-poster-placeholder').classList.add('hidden');
+    } else {
+      document.getElementById('prov-poster-preview').classList.add('hidden');
+      document.getElementById('prov-poster-placeholder').classList.remove('hidden');
+    }
+    document.getElementById('btn-delete-province').classList.remove('hidden');
+  } else {
+    document.getElementById('prov-name').value = '';
+    document.getElementById('prov-order').value = allProvincesData.length + 1;
+    document.getElementById('prov-active').checked = false;
+    currentMilestones = [];
+    document.getElementById('prov-poster-preview').classList.add('hidden');
+    document.getElementById('prov-poster-placeholder').classList.remove('hidden');
+    document.getElementById('btn-delete-province').classList.add('hidden');
+  }
+  renderMilestonesEditor();
+
+  document.getElementById('province-modal').classList.remove('hidden');
+  document.getElementById('province-modal').classList.add('flex');
+};
+
+document.getElementById('btn-new-province').onclick = () => openProvinceModal(null);
+document.getElementById('btn-close-province-modal').onclick = () => {
+  document.getElementById('province-modal').classList.add('hidden');
+  document.getElementById('province-modal').classList.remove('flex');
+};
+
+document.getElementById('btn-save-province').onclick = async () => {
+  const id = document.getElementById('prov-id').value || null;
+  const name = document.getElementById('prov-name').value.trim();
+
+  if (!name) { showToast('กรุณากรอกชื่อจังหวัด', 'error'); return; }
+
+  showLoading('กำลังบันทึก...');
+  try {
+    // อัปโหลดรูปโปสเตอร์ก่อน (ถ้าเลือกใหม่)
+    let posterImage = allProvincesData.find(p => p.id === id)?.posterImage || '';
+    if (pendingPosterFile) {
+      showLoading('กำลังอัปโหลดรูปโปสเตอร์...');
+      posterImage = await uploadImageToCloudinary(pendingPosterFile);
+    }
+
+    // อัปโหลดรูปแสตมป์ที่เปลี่ยนใหม่ทีละอัน
+    const stampIndexes = Object.keys(pendingStampFiles);
+    for (let k = 0; k < stampIndexes.length; k++) {
+      const idx = Number(stampIndexes[k]);
+      showLoading(`กำลังอัปโหลดรูปแสตมป์ (${k + 1}/${stampIndexes.length})...`);
+      const url = await uploadImageToCloudinary(pendingStampFiles[idx]);
+      currentMilestones[idx].stampImage = url;
+    }
+
+    showLoading('กำลังบันทึกข้อมูล...');
+    const data = {
+      name,
+      order: Number(document.getElementById('prov-order').value) || 0,
+      active: document.getElementById('prov-active').checked,
+      posterImage,
+      milestones: currentMilestones
+    };
+
+    await callAdminApi('save', 'walkathonProvinces', id, data);
+    hideLoading();
+    showToast('บันทึกสำเร็จ!', 'success');
+    document.getElementById('btn-close-province-modal').click();
+    loadWalkathon();
+  } catch (err) {
+    hideLoading();
+    showToast(err.message, 'error');
+  }
+};
+
+document.getElementById('btn-delete-province').onclick = async () => {
+  const id = document.getElementById('prov-id').value;
+  if (!id || !confirm('ยืนยันลบจังหวัดนี้? ผู้ที่กำลังเดินอยู่ในจังหวัดนี้จะเจอปัญหาได้')) return;
+
+  showLoading('กำลังลบ...');
+  try {
+    await callAdminApi('delete', 'walkathonProvinces', id);
+    hideLoading();
+    showToast('ลบสำเร็จ!', 'success');
+    document.getElementById('btn-close-province-modal').click();
+    loadWalkathon();
   } catch (err) {
     hideLoading();
     showToast(err.message, 'error');
