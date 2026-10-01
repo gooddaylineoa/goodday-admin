@@ -1237,7 +1237,7 @@ async function loadLibraryBranches() {
 
 // แก้ openOwnerAssignModal เดิม เพิ่มส่วนบรรณารักษ์เข้าไปด้วย
 const originalOpenOwnerAssignModal = openOwnerAssignModal;
-window.openOwnerAssignModal = async function(uid) {
+openOwnerAssignModal = async function(uid) {
   originalOpenOwnerAssignModal(uid);
   await loadLibraryBranches();
 
